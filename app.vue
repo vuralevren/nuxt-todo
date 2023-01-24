@@ -2,10 +2,19 @@
 import altogic from "~/configs/altogic";
 
 const { data, errors } = await useAsyncData(() =>
-  altogic.db.model("todo").page(1).limit(100).get()
+  altogic.db.model("todo").sort("isCompleted", "asc").page(1).limit(100).get()
 );
 
 const todos = ref(data.value.data);
+const sortedTodos = computed(() => {
+  const completedTodo = todos.value
+    .filter((todo) => todo.isCompleted)
+    .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
+  const uncompletedTodo = todos.value
+    .filter((todo) => !todo.isCompleted)
+    .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
+  return [...uncompletedTodo, ...completedTodo];
+});
 const todoInput = ref("");
 
 const handleAddTodo = async () => {
@@ -93,7 +102,7 @@ const handleDeleteTodo = async (todoId) => {
     </form>
 
     <div
-      v-for="todo in todos"
+      v-for="todo in sortedTodos"
       :key="todo._id"
       class="flex items-center justify-between mt-2"
     >
@@ -110,7 +119,10 @@ const handleDeleteTodo = async (todoId) => {
           class="ml-3 text-sm w-full p-2 cursor-pointer"
           @click="handleChangeStatus(todo._id, !todo.isCompleted)"
         >
-          <label class="font-medium text-gray-700 cursor-pointer">
+          <label
+            class="font-medium text-gray-700 cursor-pointer"
+            v-bind:class="{ 'line-through': todo.isCompleted }"
+          >
             {{ todo.name }}
           </label>
         </div>
