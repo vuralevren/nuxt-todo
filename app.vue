@@ -1,17 +1,57 @@
 <script setup>
-const todos = ref([]);
+import altogic from "~/configs/altogic";
+
+const { data, errors } = await useAsyncData(() =>
+  altogic.db.model("todo").page(1).limit(100).get()
+);
+
+const todos = ref(data.value.data);
 const todoInput = ref("");
 
-const handleAddTodo = (e) => {
-  console.log("adding todo");
+const handleAddTodo = async () => {
+  try {
+    const { data, errors } = await altogic.db.model("todo").create({
+      name: todoInput.value,
+    });
+
+    if (errors) throw errors;
+
+    todoInput.value = "";
+    todos.value.unshift(data);
+  } catch (errorList) {
+    alert(errorList?.items[0].message);
+  }
 };
 
-const handleChangeStatus = (todoId, newStatus) => {
-  console.log("changing status");
+const handleChangeStatus = async (todoId, newStatus) => {
+  try {
+    const { data: updatedTodo, errors } = await altogic.db
+      .model("todo")
+      .object(todoId)
+      .update({
+        isCompleted: newStatus,
+      });
+
+    if (errors) throw errors;
+
+    todos.value = todos.value.map((todo) =>
+      todo._id === todoId ? updatedTodo : todo
+    );
+  } catch (errorList) {
+    alert(errorList?.items[0].message);
+  }
 };
 
-const handleDeleteTodo = (todoId) => {
-  console.log("deleting todo");
+const handleDeleteTodo = async (todoId) => {
+  try {
+    const { errors } = await altogic.db.model("todo").object(todoId).delete();
+
+    if (errors) throw errors;
+
+    todos.value = todos.value.filter((todo) => todo._id !== todoId);
+  } catch (errorList) {
+    alert(errorList?.items[0].message);
+  }
 };
 </script>
 
@@ -54,7 +94,7 @@ const handleDeleteTodo = (todoId) => {
 
     <div
       v-for="todo in todos"
-      key="todo._id"
+      :key="todo._id"
       class="flex items-center justify-between mt-2"
     >
       <div class="relative flex items-center">
@@ -62,13 +102,13 @@ const handleDeleteTodo = (todoId) => {
           <input
             type="checkbox"
             class="focus:ring-indigo-500 h-6 w-6 text-indigo-600 border-gray-300 rounded cursor-pointer"
-            @change="() => handleChangeStatus(todo._id, !todo.isCompleted)"
+            @change="handleChangeStatus(todo._id, !todo.isCompleted)"
             :checked="todo.isCompleted"
           />
         </div>
         <div
           class="ml-3 text-sm w-full p-2 cursor-pointer"
-          @change="() => handleChangeStatus(todo._id, !todo.isCompleted)"
+          @click="handleChangeStatus(todo._id, !todo.isCompleted)"
         >
           <label class="font-medium text-gray-700 cursor-pointer">
             {{ todo.name }}
@@ -76,7 +116,7 @@ const handleDeleteTodo = (todoId) => {
         </div>
       </div>
       <div class="flex items-center px-2 py-2 text-sm font-medium rounded-md">
-        <button @click="() => handleDeleteTodo(todo._id)">
+        <button @click="handleDeleteTodo(todo._id)">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
